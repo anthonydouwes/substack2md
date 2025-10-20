@@ -1,0 +1,17 @@
+# Configuration for substack2md
+# Place this file in the same directory as substack2md.py or specify with --config
+
+# Base directory for storing markdown files
+# Can be overridden with --base-dir flag or SUBSTACK2MD_BASE_DIR environment variable
+base_dir: ~/Documents/substack-notes
+
+# Custom publication name mappings
+# Key: publication slug from URL (e.g., 'daveshap' from daveshap.substack.com)
+# Value: directory name you want to use
+publication_mappings:
+  # Example mappings for common newsletters
+  # signalsandsubtractions: Signals_And_Subtractions
+  # natesnewsletter: Nates_Notes
+  # daveshap: David_Shapiro
+  
+  # Add your own mappings here

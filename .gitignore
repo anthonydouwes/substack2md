@@ -1,6 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[codz]
+*.py[cod]
 *$py.class
 
 # C extensions
@@ -173,20 +173,19 @@ cython_debug/
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
-
-# Abstra
-# Abstra is an AI-powered process automation framework.
-# Ignore directories containing user credentials, local state, and settings.
-# Learn more at https://abstra.io/docs
-.abstra/
+.idea/
 
 # Visual Studio Code
 #  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
 #  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
 #  and can be added to the global gitignore or merged into this file. However, if you prefer, 
 #  you could uncomment the following to ignore the entire vscode folder
-# .vscode/
+.vscode/
+
+# Vim
+*.swp
+*.swo
+*~
 
 # Ruff stuff:
 .ruff_cache/
@@ -205,3 +204,57 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+
+# ==========================================
+# Project-specific: substack2md
+# ==========================================
+
+# User configuration (keep example, ignore actual)
+config.yaml
+
+# Personal URL lists (may contain private subscriptions)
+urls.txt
+reading-list.txt
+my-*.txt
+
+# Browser CDP profiles (created during testing)
+.brave-cdp-profile/
+.chrome-cdp-profile/
+
+# Downloaded HTML sidecar files (optional debug output)
+*.html
+
+# Test output directories
+test-output/
+output/
+downloads/
+
+# Scraped markdown output (if testing in repo)
+# Uncomment if you want to ignore local test outputs
+# *.md
+# !README.md
+# !CHANGELOG.md
+# !LICENSE.md
+
+# Cache directories
+.cache/
+__cache__/
+
+# Local dev notes
+notes.txt
+TODO.md
+scratch.md
