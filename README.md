@@ -59,15 +59,28 @@ arch -arm64 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
   --user-data-dir="$HOME/.chrome-cdp-profile"
 ```
 
+**Chrome (Windows):**
+```powershell
+& "C:\Program Files\Google\Chrome\Application\chrome.exe" `
+ --remote-debugging-port=9222 `
+ --user-data-dir=C:\tmp\chrome-debug `
+ --remote-allow-origins=http://127.0.0.1:9222
+```
+
 ### 2. Log Into Substack
 
 In the browser window that just opened, navigate to Substack and log in normally.
 
-### 3. Convert Posts
+### 3. Export URL's
+```bash
+python substack2md.py https://[publication].substack.com --export-archive
+```
+
+### 4. Convert Posts
 
 **Single URL:**
 ```bash
-python substack2md.py https://natesnewsletter.substack.com/p/latest-post
+python substack2md.py https://[publication].substack.com/p/latest-post
 ```
 
 **Multiple URLs from file:**
@@ -77,7 +90,7 @@ python substack2md.py --urls-file my-reading-list.txt
 
 **Specify output directory:**
 ```bash
-python substack2md.py https://daveshap.substack.com/p/post-slug --base-dir ~/my-notes
+python substack2md.py https://[publication].substack.com/p/post-slug --base-dir ~/my-notes
 ```
 
 ## Configuration
@@ -112,6 +125,9 @@ See `config.yaml.example` for a template.
 ## Usage Examples
 
 ```bash
+# Export the URL's of all posts in the publication
+python substack2md.py https://pub.substack.com --export-archive
+
 # Single post with custom output directory
 python substack2md.py https://pub.substack.com/p/slug --base-dir ~/vault
 
