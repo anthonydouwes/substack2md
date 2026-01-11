@@ -419,16 +419,99 @@ class CDPClient:
             self.recv_event_until("Page.loadEventFired", sessionId=sessionId, timeout=self.timeout)
         except TimeoutError:
             pass
-        res = self.send("Runtime.evaluate", {
-            "expression": "document.documentElement.outerHTML",
-            "returnByValue": True
-        }, sessionId=sessionId)
-        html = res.get("result", {}).get("value", "")
+        # Wait for main article content to appear -- Substack and some CDNs
+        # may serve a <noscript> placeholder initially. Poll until we see
+        # a likely article node before grabbing the full outerHTML.
+        deadline = time.time() + self.timeout
+        html = ""
+        while time.time() < deadline:
+            res = self.send("Runtime.evaluate", {
+                "expression": (
+                    "(() => {"
+                    "const sel = document.querySelector('article') || document.querySelector('main article') || document.querySelector('div.post') || document.querySelector('[data-test-id]');"
+                    "if (sel) { return document.documentElement.outerHTML; } else { return null; }"
+                    "})()"
+                ),
+                "returnByValue": True
+            }, sessionId=sessionId)
+            val = res.get("result", {}).get("value", None)
+            if val:
+                html = val
+                break
+            time.sleep(0.5)
+        if not html:
+            # Fallback: return whatever is currently available
+            res = self.send("Runtime.evaluate", {
+                "expression": "document.documentElement.outerHTML",
+                "returnByValue": True
+            }, sessionId=sessionId)
+            html = res.get("result", {}).get("value", "")
         try:
             self.send("Target.closeTarget", {"targetId": targetId})
         except Exception:
             pass
         return html
+# --------------------------
+# Fetch List of Archive URLs
+# --------------------------
+
+def fetch_archive_urls_via_cdp(url: str, cdp_host: str = "127.0.0.1", cdp_port: int = 9222, timeout: int = 45) -> List[str]:
+    """Render the archive page in the connected browser, scroll to load posts, and return all post URLs.
+
+    This function creates a temporary target/tab, navigates to `url`, then repeatedly scrolls
+    the page and collects anchors whose href contains `/p/`. It stops once the set of URLs
+    stabilizes for a few iterations or after a max number of attempts.
+    """
+    client = CDPClient(cdp_host, cdp_port, timeout=timeout)
+    res = client.send("Target.createTarget", {"url": "about:blank"})
+    targetId = res.get("targetId")
+    if not targetId:
+        raise RuntimeError("Could not create target for archive export")
+    res = client.send("Target.attachToTarget", {"targetId": targetId, "flatten": True})
+    sessionId = res.get("sessionId")
+    if not sessionId:
+        raise RuntimeError("Failed to attach to target for archive export")
+    client.send("Page.enable", sessionId=sessionId)
+    client.send("Page.navigate", {"url": url}, sessionId=sessionId)
+    try:
+        client.recv_event_until("Page.loadEventFired", sessionId=sessionId, timeout=timeout)
+    except TimeoutError:
+        pass
+
+    urls = set()
+    last_count = -1
+    stable = 0
+    max_rounds = 60
+    for _ in range(max_rounds):
+        expr = '''(() => {
+            window.scrollTo(0, document.body.scrollHeight);
+            const anchors = Array.from(document.querySelectorAll("a[href*='/p/']")).map(a => a.href);
+            return anchors;
+        })()'''
+        try:
+            r = client.send("Runtime.evaluate", {"expression": expr, "returnByValue": True}, sessionId=sessionId)
+        except Exception:
+            break
+        arr = r.get("result", {}).get("value") or []
+        for a in arr:
+            # normalize
+            if isinstance(a, str) and a:
+                urls.add(a.split('?')[0])
+        if len(urls) == last_count:
+            stable += 1
+            if stable >= 3:
+                break
+        else:
+            stable = 0
+            last_count = len(urls)
+        time.sleep(0.5)
+
+    try:
+        client.send("Target.closeTarget", {"targetId": targetId})
+    except Exception:
+        pass
+
+    return sorted(urls)
 
 # --------------------------
 # Link rewriting against vault
@@ -610,6 +693,7 @@ Environment variables:
     ap.add_argument("--timeout", type=int, default=45, help="Per-page CDP timeout seconds")
     ap.add_argument("--retries", type=int, default=2, help="Retries per URL on transient failures")
     ap.add_argument("--sleep-ms", type=int, default=150, help="Sleep between URLs to be polite")
+    ap.add_argument("--export-archive", action="store_true", help="Render archive in browser and print all post URLs")
     args = ap.parse_args()
 
     # Load configuration
@@ -641,6 +725,26 @@ Environment variables:
     if not url_list:
         ap.print_help()
         sys.exit(2)
+
+    if args.export_archive:
+        # Use the first provided URL or interpret a bare slug
+        input_val = url_list[0] if url_list else None
+        if not input_val:
+            print("Provide a publication URL or slug to export archive from.")
+            sys.exit(2)
+        if "substack.com" in input_val:
+            parts = urllib.parse.urlsplit(input_val)
+            base = f"{parts.scheme}://{parts.netloc}"
+        else:
+            base = f"https://{input_val}.substack.com"
+        archive_url = base.rstrip("/") + "/archive"
+        try:
+            urls = fetch_archive_urls_via_cdp(archive_url, args.cdp_host, args.cdp_port, args.timeout)
+            for u in urls:
+                print(u)
+        except Exception as e:
+            print(f"[fail] export-archive: {e}", file=sys.stderr)
+        return
 
     for i, url in enumerate(url_list, 1):
         if "substack.com" not in url:
